@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>지연시간 UX 실험 (무의미한 시도는 결과에만 표시)</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+    .hidden { display: none; }
+    .results { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h2>지연시간 UX 실험</h2>
+  <p>버튼을 눌러 실험을 시작하세요.</p>
+
+  <button id="testButton">눌러주세요</button>
+  <div id="status"></div>
+
+  <div id="ratingSection" class="hidden">
+    <p>이 지연시간에 대한 만족도를 1~10점으로 평가해주세요:</p>
+    <input type="number" id="ratingInput" min="1" max="10" />
+    <button onclick="submitRating()">제출</button>
+  </div>
+
+  <div id="results" class="results hidden"></div>
+
+  <script>
+    const delays = [0, 1, 5, 10];
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    const randomizedDelays = shuffle([...delays]);
+    let currentIndex = 0;
+    let meaninglessClicks = 0;
+    let isWaiting = false;
+    const results = [];
+
+    const button = document.getElementById("testButton");
+    const status = document.getElementById("status");
+    const ratingSection = document.getElementById("ratingSection");
+    const ratingInput = document.getElementById("ratingInput");
+    const resultsDiv = document.getElementById("results");
+
+    // 화면 전체 클릭 시 무의미한 조작 카운트 (지연 중에만)
+    document.addEventListener("click", (e) => {
+      if (isWaiting) {
+        meaninglessClicks++;
+        // 지연 중에만 카운트, 상태창엔 표시하지 않음
+      }
+    });
+
+    button.addEventListener("click", () => {
+      if (isWaiting) return;
+      if (currentIndex >= randomizedDelays.length) return;
+
+      const delay = randomizedDelays[currentIndex];
+      isWaiting = true;
+      meaninglessClicks = 0;
+      status.innerText = `지연 중...`;
+
+      setTimeout(() => {
+        status.innerText = `지연 ${delay}초 종료. 평가를 입력해주세요.`;
+        ratingSection.classList.remove("hidden");
+      }, delay * 1000);
+    });
+
+    function submitRating() {
+      const rating = parseInt(ratingInput.value);
+      if (isNaN(rating) || rating < 1 || rating > 10) {
+        alert("1~10 사이의 숫자를 입력해주세요.");
+        return;
+      }
+
+      const delay = randomizedDelays[currentIndex];
+      results.push({
+        delay: delay,
+        meaninglessClicks: meaninglessClicks,
+        rating: rating
+      });
+
+      currentIndex++;
+      isWaiting = false;
+      ratingInput.value = "";
+      ratingSection.classList.add("hidden");
+      status.innerText = "";
+
+      if (currentIndex >= randomizedDelays.length) {
+        showResults();
+      } else {
+        status.innerText = `다음 실험을 위해 버튼을 눌러주세요. (${randomizedDelays.length - currentIndex}회 남음)`;
+      }
+    }
+
+    function showResults() {
+      // delay 기준 오름차순 정렬
+      results.sort((a, b) => a.delay - b.delay);
+
+      let html = "<h3>실험 결과</h3><table border='1' cellpadding='5'><tr><th>지연시간 (초)</th><th>무의미한 조작 횟수</th><th>만족도 평가</th></tr>";
+      results.forEach(r => {
+        html += `<tr><td>${r.delay}</td><td>${r.meaninglessClicks}</td><td>${r.rating}</td></tr>`;
+      });
+      html += "</table>";
+      resultsDiv.innerHTML = html;
+      resultsDiv.classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
